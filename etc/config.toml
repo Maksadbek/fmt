@@ -1,0 +1,2 @@
+ServerAddr = ":8080"
+MaxInputLength = 1000
