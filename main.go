@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"net/http"
 
@@ -42,23 +41,12 @@ func (a *App) formatJSON(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	defer r.Body.Close()
 
-	/*
-		buf, err := ioutil.ReadAll(io.LimitReader(r.Body, a.config.MaxInputLength))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	*/
-
-	println(string(r.Form.Get("text")))
 	buf := &bytes.Buffer{}
 	err := json.Indent(buf, []byte(r.Form.Get("text")), "", "   ")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println(buf.String())
 
 	c := struct {
 		Result template.JS
@@ -70,11 +58,11 @@ func (a *App) formatJSON(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	app := new(App)
-
 	app.init()
 
 	http.HandleFunc("/", app.indexHandler)
 	http.HandleFunc("/format/json", app.formatJSON)
 
+	println("starting web server:", app.config.ServerAddr)
 	panic(http.ListenAndServe(app.config.ServerAddr, nil))
 }
