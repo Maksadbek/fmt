@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	"html/template"
 	"net/http"
-	"path/filepath"
 
 	"github.com/burntsushi/toml"
+)
+
+var (
+	configFile = flag.String("config", "./etc/config.toml", "config file path")
 )
 
 type Config struct {
@@ -17,26 +19,39 @@ type Config struct {
 }
 
 type App struct {
-	templates *template.Template
-	config    Config
+	config Config
 }
 
-func (a *App) init(configFile, tmplDir string) {
+func (a *App) init(configFile string) {
 	if _, err := toml.DecodeFile(configFile, &a.config); err != nil {
 		panic(err)
 	}
-
-	var err error
-	if a.templates, err = template.ParseFiles(
-		filepath.Join(tmplDir, "index.tmpl"),
-		filepath.Join(tmplDir, "output.tmpl"),
-	); err != nil {
-		panic(err)
-	}
 }
 
+var indexPage = []byte(`<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      textarea {
+        font-size: 16px;
+        font-family: Courier New, Arial;
+        width: 100%;
+        height: 100vw;
+      }
+    </style>
+  </head>
+  
+  <body>
+    <form action="/format/json" method="post">
+      <div><input type="submit" /></div>
+      </br>
+      <textarea name="text"></textarea>
+    </form>
+  </body>
+</html>`)
+
 func (a *App) indexHandler(w http.ResponseWriter, r *http.Request) {
-	a.templates.ExecuteTemplate(w, "index", nil)
+	w.Write(indexPage)
 }
 
 func (a *App) formatJSON(w http.ResponseWriter, r *http.Request) {
@@ -50,24 +65,14 @@ func (a *App) formatJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := struct {
-		Result template.JS
-	}{}
-
-	c.Result = template.JS(buf.String())
-	a.templates.ExecuteTemplate(w, "output", c)
+	w.Write(buf.Bytes())
 }
-
-var (
-	configFile = flag.String("config", "./etc/config.toml", "config file path")
-	tmplDir    = flag.String("tmplDir", "./templates", "templates directory")
-)
 
 func main() {
 	flag.Parse()
 
 	app := new(App)
-	app.init(*configFile, *tmplDir)
+	app.init(*configFile)
 
 	http.HandleFunc("/", app.indexHandler)
 	http.HandleFunc("/format/json", app.formatJSON)
